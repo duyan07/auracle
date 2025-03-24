@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
     title: "Auracle",
-    description: "X clone using Next.js, SpringBoot, and  PostgreSQL."
+    description: "X clone using Next.js, SpringBoot, and PostgreSQL."
 }
 
 export default function RootLayout({

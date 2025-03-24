@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function Page() {
+export default function Landing() {
     return <div className="flex justify-evenly">
         <h1>Welcome to <br /><span className="text-purple-500">Auracle</span></h1>
         <section className="flex flex-col gap-2">
