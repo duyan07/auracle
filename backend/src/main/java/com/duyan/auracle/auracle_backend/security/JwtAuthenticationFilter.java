@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (Exception e) {
-                // token is invalid - continue without authentiction
+                // token is invalid - continue without authentication
                 logger.error("JWT validation failed: " + e.getMessage());
             }
         }

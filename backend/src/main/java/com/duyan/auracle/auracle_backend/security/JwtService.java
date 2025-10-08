@@ -20,7 +20,7 @@ public class JwtService {
     public Claims validateToken(String token) {
         try {
             // parse and verify the JWT token
-            return Jwts.parserBuilder()
+            return Jwts.parser()
                     .setSigningKeyResolver(new ClerkJwksKeyResolver(jwksUrl))
                     .build()
                     .parseClaimsJws(token)

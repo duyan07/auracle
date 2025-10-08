@@ -55,8 +55,8 @@ public class ClerkJwksKeyResolver extends SigningKeyResolverAdapter{
         String e = (String) keyData.get("e"); // exponent
 
         // decode Base64URL to bytes
-        byte[] nBytes = Base64.getDecoder().decode(n);
-        byte[] eBytes = Base64.getDecoder().decode(e);
+        byte[] nBytes = java.util.Base64.getUrlDecoder().decode(n);
+        byte[] eBytes = java.util.Base64.getUrlDecoder().decode(e);
 
         // build RSA public key
         BigInteger modulus = new BigInteger(1, nBytes);
