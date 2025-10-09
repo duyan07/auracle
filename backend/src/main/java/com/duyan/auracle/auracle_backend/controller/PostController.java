@@ -1,7 +1,16 @@
 package com.duyan.auracle.auracle_backend.controller;
 
+import com.amazonaws.Response;
+import com.duyan.auracle.auracle_backend.dto.request.CreatePostRequest;
+import com.duyan.auracle.auracle_backend.dto.request.UpdatePostRequest;
+import com.duyan.auracle.auracle_backend.dto.response.PageResponseDTO;
+import com.duyan.auracle.auracle_backend.dto.response.PostFeedResponseDTO;
+import com.duyan.auracle.auracle_backend.dto.response.PostResponseDTO;
+import com.duyan.auracle.auracle_backend.mapper.PageMapper;
+import com.duyan.auracle.auracle_backend.mapper.PostMapper;
 import com.duyan.auracle.auracle_backend.model.Post;
 import com.duyan.auracle.auracle_backend.service.PostService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -10,7 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -19,46 +28,61 @@ public class PostController {
     @Autowired
     private PostService postService;
 
-    @PostMapping
-    public ResponseEntity<Post> createPost(@RequestBody Map<String, Object> postData) {
-        String clerkUserId = getAuthenticatedUserId();
-        String content = (String) postData.get("content");
-        List<String> imageUrls = (List<String>) postData.get("imageUrls");
+    @Autowired
+    private PostMapper postMapper;
 
-        Post post = postService.createPost(clerkUserId, content, imageUrls);
-        return ResponseEntity.status(201).body(post);
-    }
+    @Autowired
+    private PageMapper pageMapper;
+
+    @PostMapping
+    public ResponseEntity<PostResponseDTO> createPost(@Valid @RequestBody CreatePostRequest request) {
+        String clerkUserId = getAuthenticatedUserId();
+        Post post = postService.createPost(clerkUserId, request.getContent(), request.getImageUrls());
+        PostResponseDTO dto = postMapper.toPostResponseDTO(post, post.getUserId(), false);
+        return ResponseEntity.status(201).body(dto);    }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<Post> getPost(@PathVariable String postId) {
-        Post post = postService.getPostById(postId)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
-        return ResponseEntity.ok(post);
+    public ResponseEntity<PostResponseDTO> getPost(@PathVariable String postId) {
+        String currentUserId = getAuthenticatedUserId();
+        Post post = postService.getPostByIdOrThrow(postId);
+        PostResponseDTO dto = postMapper.toPostResponseDTO(post, currentUserId, false);
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Post>> getUserPosts(@PathVariable String userId) {
+    public ResponseEntity<List<PostResponseDTO>> getUserPosts(@PathVariable String userId) {
+        String currentUserId = getAuthenticatedUserId();
         List<Post> posts = postService.getPostsByUser(userId);
-        return ResponseEntity.ok(posts);
+
+        List<PostResponseDTO> dtos = posts.stream()
+                .map(post -> postMapper.toPostResponseDTO(post, currentUserId, false))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/feed")
-    public ResponseEntity<Page<Post>> getFeed(
+    public ResponseEntity<PageResponseDTO<PostFeedResponseDTO>> getFeed(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<Post> posts = postService.getFeed(page, size);
-        return ResponseEntity.ok(posts);
+        PageResponseDTO<PostFeedResponseDTO> response = pageMapper.toPageResponseDTO(
+                posts,
+                post -> postMapper.toPostFeedResponseDTO(post, false) // TODO: check if liked
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{postId}")
-    public ResponseEntity<Post> updatePost(
+    public ResponseEntity<PostResponseDTO> updatePost(
             @PathVariable String postId,
-            @RequestBody Map<String, String> updates) {
+            @Valid @RequestBody UpdatePostRequest request) {
         String clerkUserId = getAuthenticatedUserId();
-        String newContent = updates.get("content");
+        Post updatedPost = postService.updatePost(clerkUserId, postId, request.getContent());
 
-        Post updatedPost = postService.updatePost(postId, clerkUserId, newContent);
-        return ResponseEntity.ok(updatedPost);
+        PostResponseDTO dto = postMapper.toPostResponseDTO(updatedPost, postId, false);
+        return ResponseEntity.ok(dto);
     }
 
     @DeleteMapping("/{postId}")

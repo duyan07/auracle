@@ -1,7 +1,11 @@
 package com.duyan.auracle.auracle_backend.service;
 
+import com.duyan.auracle.auracle_backend.dto.request.UpdateUserRequest;
+import com.duyan.auracle.auracle_backend.exception.BadRequestException;
+import com.duyan.auracle.auracle_backend.exception.ResourceNotFoundException;
 import com.duyan.auracle.auracle_backend.model.User;
 import com.duyan.auracle.auracle_backend.repository.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -44,9 +48,32 @@ public class UserService {
         return userRepository.findById(id);
     }
 
-    public User updateUser(String clerkUserId, User updates) {
+    public User getUserByClerkIdOrThrow(String clerkUserId) {
+        return userRepository.findByClerkUserId(clerkUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "clerkUserId", clerkUserId));
+    }
+
+    public User getUserByUsernameOrThrow(String username) {
+        return getUserByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
+    }
+
+    public User getUserByIdOrThrow(String id) {
+        return getUserById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+    }
+
+    public User updateUser(String clerkUserId, @Valid UpdateUserRequest updates) {
         User user = userRepository.findByClerkUserId(clerkUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "clerkUserId", clerkUserId));
+
+        if (updates.getDisplayName() != null && updates.getDisplayName().trim().isEmpty()) {
+            throw new BadRequestException("Display name cannot be empty");
+        }
+
+        if (updates.getBio() != null && updates.getBio().length() > 200) {
+            throw new BadRequestException("Bio cannot be longer than 200 characters");
+        }
 
         if (updates.getDisplayName() != null) {
             user.setDisplayName(updates.getDisplayName());
@@ -72,7 +99,7 @@ public class UserService {
 
     public void incrementPostCount(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         user.setPostsCount(user.getPostsCount() + 1);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
@@ -80,8 +107,36 @@ public class UserService {
 
     public void decrementPostCount(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         user.setPostsCount(user.getPostsCount() - 1);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public void incrementFollowersCount(String userId) {
+        User user = getUserByIdOrThrow(userId);
+        user.setFollowersCount(user.getFollowersCount() + 1);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public void decrementFollowersCount(String userId) {
+        User user = getUserByIdOrThrow(userId);
+        user.setFollowersCount(Math.max(0, user.getFollowersCount() - 1));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public void incrementFollowingCount(String userId) {
+        User user = getUserByIdOrThrow(userId);
+        user.setFollowingCount(user.getFollowingCount() + 1);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public void decrementFollowingCount(String userId) {
+        User user = getUserByIdOrThrow(userId);
+        user.setFollowingCount(Math.max(0, user.getFollowingCount() - 1));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
     }

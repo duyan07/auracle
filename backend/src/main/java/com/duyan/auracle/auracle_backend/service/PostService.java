@@ -1,9 +1,11 @@
 package com.duyan.auracle.auracle_backend.service;
 
+import com.duyan.auracle.auracle_backend.exception.ResourceNotFoundException;
+import com.duyan.auracle.auracle_backend.exception.BadRequestException;
+
 import com.duyan.auracle.auracle_backend.model.Post;
 import com.duyan.auracle.auracle_backend.model.User;
 import com.duyan.auracle.auracle_backend.repository.PostRepository;
-import com.duyan.auracle.auracle_backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,12 +24,17 @@ public class PostService {
 
     @Autowired
     private UserService userService;
-    @Autowired
-    private UserRepository userRepository;
 
     public Post createPost(String clerkUserId, String content, List<String> imageUrls) {
-        User user = userService.getUserByClerkId(clerkUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (content == null || content.trim().isEmpty()) {
+            throw new BadRequestException("Post content cannot be empty");
+        }
+
+        if (content.length() > 2000) {
+            throw new BadRequestException("Post content cannot exceed 2000 characters");
+        }
+
+        User user = userService.getUserByClerkIdOrThrow(clerkUserId);
 
         Post post = new Post();
         post.setUserId(user.getId());
@@ -40,7 +47,6 @@ public class PostService {
         post.setUpdatedAt(LocalDateTime.now());
 
         Post savedPost = postRepository.save(post);
-
         userService.incrementPostCount(user.getId());
 
         return savedPost;
@@ -48,6 +54,11 @@ public class PostService {
 
     public Optional<Post> getPostById(String postId) {
         return postRepository.findById(postId);
+    }
+
+    public Post getPostByIdOrThrow(String postId) {
+        return getPostById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
     }
 
     public List<Post> getPostsByUser(String userId) {
@@ -64,27 +75,20 @@ public class PostService {
         return postRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
-    public void deletePost(String postId, String clerkUserId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
-
-        User user = userService.getUserByClerkId(clerkUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!post.getUserId().equals(user.getId())) {
-            throw new RuntimeException("Unauthorized to delete this post");
+    public Post updatePost(String postId, String clerkUserId, String newContent) {
+        if (newContent == null || newContent.trim().isEmpty()) {
+            throw new BadRequestException("Post content cannot be empty");
         }
 
-        postRepository.deleteById(postId);
-        userService.decrementPostCount(user.getId());
-    }
+        if (newContent.length() > 2000) {
+            throw new BadRequestException("Post content cannot exceed 2000 characters");
+        }
 
-    public Post updatePost(String postId, String clerkUserId, String newContent) {
         Post post = postRepository.findById(postId)
-            .orElseThrow(() -> new RuntimeException("Post not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
 
         User user = userService.getUserByClerkId(clerkUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "clerkUserId", clerkUserId));
 
         if (!post.getUserId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized to edit this post");
@@ -96,10 +100,46 @@ public class PostService {
         return postRepository.save(post);
     }
 
-    public void increaseLikeCount(String postId) {
+    public void deletePost(String postId, String clerkUserId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+
+        User user = userService.getUserByClerkId(clerkUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "clerkUserId", clerkUserId));
+
+        if (!post.getUserId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized to delete this post");
+        }
+
+        postRepository.deleteById(postId);
+        userService.decrementPostCount(user.getId());
+    }
+
+    public void incrementLikeCount(String postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
         post.setLikesCount(post.getLikesCount() + 1);
+        post.setUpdatedAt(LocalDateTime.now());
+        postRepository.save(post);
+    }
+
+    public void decrementLikeCount(String postId) {
+        Post post = getPostByIdOrThrow(postId);
+        post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+        post.setUpdatedAt(LocalDateTime.now());
+        postRepository.save(post);
+    }
+
+    public void incrementCommentCount(String postId) {
+        Post post = getPostByIdOrThrow(postId);
+        post.setCommentsCount(post.getCommentsCount() + 1);
+        post.setUpdatedAt(LocalDateTime.now());
+        postRepository.save(post);
+    }
+
+    public void decrementCommentCount(String postId) {
+        Post post = getPostByIdOrThrow(postId);
+        post.setCommentsCount(Math.max(0, post.getCommentsCount() - 1));
         post.setUpdatedAt(LocalDateTime.now());
         postRepository.save(post);
     }

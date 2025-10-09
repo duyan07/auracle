@@ -1,7 +1,13 @@
 package com.duyan.auracle.auracle_backend.controller;
 
+import com.duyan.auracle.auracle_backend.dto.request.CreateUserRequest;
+import com.duyan.auracle.auracle_backend.dto.request.UpdateUserRequest;
+import com.duyan.auracle.auracle_backend.dto.response.UserProfileResponseDTO;
+import com.duyan.auracle.auracle_backend.dto.response.UserResponseDTO;
+import com.duyan.auracle.auracle_backend.mapper.UserMapper;
 import com.duyan.auracle.auracle_backend.model.User;
 import com.duyan.auracle.auracle_backend.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -17,37 +23,44 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @PostMapping("/me")
-    public ResponseEntity<User> createOrGetCurrentUser(@RequestBody Map<String, String> userData) {
-        String clerkUserId = getAuthenticatedUserId();
-        String username = userData.get("username");
-        String email = userData.get("email");
-        String displayName = userData.get("displayName");
+    @Autowired
+    private UserMapper userMapper;
 
-        User user = userService.createOrGetUser(clerkUserId, username, email, displayName);
-        return ResponseEntity.ok(user);
+    @PostMapping("/me")
+    public ResponseEntity<UserProfileResponseDTO> createOrGetCurrentUser(
+            @Valid @RequestBody CreateUserRequest request) {
+        String clerkUserId = getAuthenticatedUserId();
+
+        User user = userService.createOrGetUser(
+                clerkUserId,
+                request.getUsername(),
+                request.getEmail(),
+                request.getDisplayName()
+        );
+
+        return ResponseEntity.ok(userMapper.toUserProfileResponseDTO(user));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<User> getCurrentUser() {
+    public ResponseEntity<UserProfileResponseDTO> getCurrentUser() {
         String clerkUserId = getAuthenticatedUserId();
-        User user = userService.getUserByClerkId(clerkUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return ResponseEntity.ok(user);
+        User user = userService.getUserByClerkIdOrThrow(clerkUserId);
+        return ResponseEntity.ok(userMapper.toUserProfileResponseDTO(user));
     }
 
     @GetMapping("/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        User user = userService.getUserByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return ResponseEntity.ok(user);
+    public ResponseEntity<UserResponseDTO> getUserByUsername(@PathVariable String username) {
+        String clerkUserId = getAuthenticatedUserId();
+        User user = userService.getUserByClerkIdOrThrow(clerkUserId);
+        return ResponseEntity.ok(userMapper.toUserResponseDTO(user));
     }
 
     @PutMapping("/me")
-    public ResponseEntity<User> updateCurrentUser(@RequestBody User updates) {
+    public ResponseEntity<UserProfileResponseDTO> updateCurrentUser(
+            @Valid @RequestBody UpdateUserRequest request) {
         String clerkUserId = getAuthenticatedUserId();
-        User updatedUser = userService.updateUser(clerkUserId, updates);
-        return ResponseEntity.ok(updatedUser);
+        User updatedUser = userService.updateUser(clerkUserId, request);
+        return ResponseEntity.ok(userMapper.toUserProfileResponseDTO(updatedUser));
     }
 
     @GetMapping("/check-username/{username}")
