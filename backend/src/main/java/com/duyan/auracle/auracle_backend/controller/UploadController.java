@@ -20,7 +20,7 @@ public class UploadController {
             @RequestParam("file") MultipartFile file) {
         try {
             String imageUrl = s3Service.uploadFile(file, "profiles");
-            return ResponseEntity.ok(Map.of("imageUrl", imageUrl))
+            return ResponseEntity.ok(Map.of("imageUrl", imageUrl));
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(Map.of("error", "Upload failed: " + e.getMessage()));
