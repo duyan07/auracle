@@ -8,32 +8,33 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "users")
-public class User {
+@Document(collection = "posts")
+public class Post {
 
     @Id
     private String id;
 
-    @Indexed(unique = true)
-    private String clerkUserId;
+    @Indexed
+    private String userId;
 
-    @Indexed(unique = true)
     private String username;
-
-    private String email;
     private String displayName;
-    private String bio;
     private String profileImageUrl;
-    private String bannerImageUrl;
 
-    private Integer followersCount = 0;
-    private Integer followingCount = 0;
-    private Integer postsCount = 0;
+    private String content;
+    private List<String> imageUrls = new ArrayList<>();
 
+    private Integer likesCount = 0;
+    private Integer commentsCount = 0;
+    private Integer respostsCount = 0;
+
+    @Indexed
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
 }

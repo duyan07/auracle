@@ -1,3 +1,8 @@
 spring.application.name=auracle-backend
 spring.data.mongodb.uri=mongodb+srv://username:password@cluster.mongodb.net/dbname?retryWrites=true&w=majority
 server.port=8080
+
+aws.s3.bucket-name=your-bucket-name
+aws.s3.region=us-west-2
+aws.access-key-id=YOUR_AWS_ACCESS_KEY
+aws.secret-access-key=YOUR_AWS_SECRET_KEY
