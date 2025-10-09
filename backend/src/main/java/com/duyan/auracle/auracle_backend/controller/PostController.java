@@ -9,7 +9,9 @@ import com.duyan.auracle.auracle_backend.dto.response.PostResponseDTO;
 import com.duyan.auracle.auracle_backend.mapper.PageMapper;
 import com.duyan.auracle.auracle_backend.mapper.PostMapper;
 import com.duyan.auracle.auracle_backend.model.Post;
+import com.duyan.auracle.auracle_backend.model.User;
 import com.duyan.auracle.auracle_backend.service.PostService;
+import com.duyan.auracle.auracle_backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,9 @@ public class PostController {
     private PostService postService;
 
     @Autowired
+    private UserService userService;
+
+    @Autowired
     private PostMapper postMapper;
 
     @Autowired
@@ -38,24 +43,26 @@ public class PostController {
     public ResponseEntity<PostResponseDTO> createPost(@Valid @RequestBody CreatePostRequest request) {
         String clerkUserId = getAuthenticatedUserId();
         Post post = postService.createPost(clerkUserId, request.getContent(), request.getImageUrls());
-        PostResponseDTO dto = postMapper.toPostResponseDTO(post, post.getUserId(), false);
+        PostResponseDTO dto = postMapper.toPostResponseDTO(post, post.getUserId());
         return ResponseEntity.status(201).body(dto);    }
 
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponseDTO> getPost(@PathVariable String postId) {
-        String currentUserId = getAuthenticatedUserId();
+        String clerkUserId = getAuthenticatedUserId();
+        User currentUser = userService.getUserByClerkIdOrThrow(clerkUserId);
         Post post = postService.getPostByIdOrThrow(postId);
-        PostResponseDTO dto = postMapper.toPostResponseDTO(post, currentUserId, false);
+        PostResponseDTO dto = postMapper.toPostResponseDTO(post, currentUser.getId());
         return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<PostResponseDTO>> getUserPosts(@PathVariable String userId) {
-        String currentUserId = getAuthenticatedUserId();
+        String clerkUserId = getAuthenticatedUserId();
+        User currentUser = userService.getUserByClerkIdOrThrow(clerkUserId);
         List<Post> posts = postService.getPostsByUser(userId);
 
         List<PostResponseDTO> dtos = posts.stream()
-                .map(post -> postMapper.toPostResponseDTO(post, currentUserId, false))
+                .map(post -> postMapper.toPostResponseDTO(post, currentUser.getId()))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(dtos);
@@ -65,10 +72,14 @@ public class PostController {
     public ResponseEntity<PageResponseDTO<PostFeedResponseDTO>> getFeed(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+
+        String clerkUserId = getAuthenticatedUserId();
+        User currentUser = userService.getUserByClerkIdOrThrow(clerkUserId);
+
         Page<Post> posts = postService.getFeed(page, size);
         PageResponseDTO<PostFeedResponseDTO> response = pageMapper.toPageResponseDTO(
                 posts,
-                post -> postMapper.toPostFeedResponseDTO(post, false) // TODO: check if liked
+                post -> postMapper.toPostFeedResponseDTO(post, currentUser.getId())
         );
 
         return ResponseEntity.ok(response);
@@ -81,7 +92,7 @@ public class PostController {
         String clerkUserId = getAuthenticatedUserId();
         Post updatedPost = postService.updatePost(clerkUserId, postId, request.getContent());
 
-        PostResponseDTO dto = postMapper.toPostResponseDTO(updatedPost, postId, false);
+        PostResponseDTO dto = postMapper.toPostResponseDTO(updatedPost, postId);
         return ResponseEntity.ok(dto);
     }
 
